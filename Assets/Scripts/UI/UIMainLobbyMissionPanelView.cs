@@ -46,8 +46,6 @@ public class UIMainLobbyMissionPanelView : MonoBehaviour
 
     public void UpdatePanel()
     {
-        Debug.Log("update");
-
         if (_isComponentsLoaded == false)
         {
             LoadComponents();
