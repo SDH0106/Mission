@@ -27,6 +27,8 @@ public class GameData
     public static Dictionary<ulong, double> MonsterKillCountsByMonsterId = new Dictionary<ulong, double>();
     public static Dictionary<TempDatas.WeaponTypes, double> MonsterKillCountsByWeaponType = new Dictionary<TempDatas.WeaponTypes, double>();
 
+    public System.DateTime currentTime;
+
     #region instance
     static GameData _instance;
     public static GameData Instance

@@ -9,6 +9,25 @@ public partial class User //Load
     {
         JSONObject loadJson = new JSONObject(PlayerPrefs.GetString(SavedJsonPrefsKey, ""));
 
+        string valueString = "";
+
+        for (int i = 0; i < UsedFreeRefreshCount.Length; ++i)
+        {
+            loadJson.GetField(out valueString, UserPropertyCategory.UserMissionRefreshCount.ToString() + i, "0,0");
+            string[] splitString = valueString.Split(',');
+            int.TryParse(splitString[0], out _usedMissionFreeRefreshCount[i]);
+            int.TryParse(splitString[1], out _usedMissionPaidRefreshCount[i]);
+        }
+
+        loadJson.GetField(out valueString, UserPropertyCategory.DailyClearLog.ToString(), "12/27/2016");
+        GameManager._dailyLogoutTime = System.DateTime.Parse(valueString);
+
+        loadJson.GetField(out valueString, UserPropertyCategory.WeeklyClearLog.ToString(), "12/27/2016");
+        GameManager._weeklyLogoutTime = System.DateTime.Parse(valueString);
+
+        loadJson.GetField(out valueString, UserPropertyCategory.MonthlyClearLog.ToString(), "12/27/2016");
+        GameManager._monthlyLogoutTime = System.DateTime.Parse(valueString);
+
         // 미션 로드
         LoadUserMissionJson(loadJson.GetField(UserPropertyCategory.UserMissions.ToString()));
     }
