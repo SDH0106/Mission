@@ -16,3 +16,4 @@ Visual Studio 2022</br>
 - 미션 변경 횟수와 재화를 소모하여 랜덤 요소 변경 기능
 
 ## 🎞️플레이 영상
+https://youtu.be/6Edikti37Pk
