@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using Unity.VisualScripting;
@@ -5,6 +6,11 @@ using UnityEngine;
 
 public partial class User
 {
+    public enum ClassType : int
+    {
+        Charater1, Charater2, Charater3, Charater4
+    }
+
     static User _instance;
     public static User Instance
     {
@@ -24,20 +30,30 @@ public partial class User
     public const string SavedJsonPrefsKey = "SavedJson";
 
     Dictionary<ulong, UserMission> _userMissions;
+    public ulong _userPet = 0;
+    public int _chapter = 10;
+    public int Chapter => _chapter;
 
-    int[] _usedMissionFreeRefreshCount = new int[4];
-    int[] _usedMissionPaidRefreshCount = new int[4];
+    public int _level = 25;
+    public int Level => _level;
+
+    public int _userBody = 0;
+
+    int _usedMissionFreeRefreshCount;
+    int _usedMissionPaidRefreshCount;
 
     public double Gem = 100;
     public double Relic = 50;
     public double Coin = 10;
 
-    public int[] UsedFreeRefreshCount
+    public Action OnValuesChange;
+
+    public int UsedFreeRefreshCount
     {
         get { return _usedMissionFreeRefreshCount; }
     }
 
-    public int[] UsedPaidRefreshCount
+    public int UsedPaidRefreshCount
     {
         get { return _usedMissionPaidRefreshCount; }
     }
@@ -53,64 +69,57 @@ public partial class User
     public void SetMissionCount(ulong missionId, double count)
     {
         if (_userMissions.ContainsKey(missionId))
-            _userMissions[missionId] = new UserMission(missionId, count, _userMissions[missionId].isComplete, _userMissions[missionId].isReward, _userMissions[missionId].randomMissionElements);
+            _userMissions[missionId] = new UserMission(missionId, count, _userMissions[missionId].isComplete, _userMissions[missionId].isReward, _userMissions[missionId].objectives);
         else
             _userMissions.Add(missionId, new UserMission(missionId, count, false, false, null));
+
+        NotifyValuesChanged();
     }
 
     public void SetMissionComplete(ulong missionId, bool isComplete)
     {
         if (_userMissions.ContainsKey(missionId))
-            _userMissions[missionId] = new UserMission(missionId, _userMissions[missionId].count, isComplete, _userMissions[missionId].isReward, _userMissions[missionId].randomMissionElements);
+            _userMissions[missionId] = new UserMission(missionId, _userMissions[missionId].count, isComplete, _userMissions[missionId].isReward, _userMissions[missionId].objectives);
         else
             _userMissions.Add(missionId, new UserMission(missionId, 0, isComplete, false, null));
+
+        NotifyValuesChanged();
     }
 
     public void SetMissionReward(ulong missionId, bool isReward)
     {
         if (_userMissions.ContainsKey(missionId))
-            _userMissions[missionId] = new UserMission(missionId, _userMissions[missionId].count, _userMissions[missionId].isComplete, isReward, _userMissions[missionId].randomMissionElements);
+            _userMissions[missionId] = new UserMission(missionId, _userMissions[missionId].count, _userMissions[missionId].isComplete, isReward, _userMissions[missionId].objectives);
         else
             _userMissions.Add(missionId, new UserMission(missionId, 0, false, isReward, null));
-    }
 
-    public void SetMissionElements(ulong missionId, Dictionary<RandomMission.MissionElementTypes, string> randomMissionElements)
+        NotifyValuesChanged();
+    }
+    public void SetMissionObjectives(ulong missionId, MissionObjective[] missionObejctive)
     {
         if (_userMissions.ContainsKey(missionId))
-            _userMissions[missionId] = new UserMission(missionId, _userMissions[missionId].count, _userMissions[missionId].isComplete, _userMissions[missionId].isReward, randomMissionElements);
-
+            _userMissions[missionId] = new UserMission(missionId, _userMissions[missionId].count, _userMissions[missionId].isComplete, _userMissions[missionId].isReward, missionObejctive);
         else
-            _userMissions.Add(missionId, new UserMission(missionId, 0, false, false, randomMissionElements));
+            _userMissions.Add(missionId, new UserMission(missionId, 0, false, false, missionObejctive));
+
+        NotifyValuesChanged();
     }
 
-    public void SetMissionRefreshCount(LifeCycleType type, int useFreeRefreshCount, int usePaidRefreshCount)
+    public void SetMissionRefreshCount(int usedFreeRefreshCount, int usedPaidRefreshCount)
     {
-        _usedMissionFreeRefreshCount[(int)type] = useFreeRefreshCount;
-        _usedMissionPaidRefreshCount[(int)type] = usePaidRefreshCount;
-    }
+        _usedMissionFreeRefreshCount = usedFreeRefreshCount;
+        _usedMissionPaidRefreshCount = usedPaidRefreshCount;
 
-    public void ClearMissionExceptRandomElement(ulong missionId, Dictionary<RandomMission.MissionElementTypes, string> randomMissionElements)
-    {
-        if (_userMissions.ContainsKey(missionId))
-            _userMissions[missionId] = new UserMission(missionId, 0, false, false, randomMissionElements);
-        else
-            _userMissions.Add(missionId, new UserMission(missionId, 0, false, false, randomMissionElements));
+        NotifyValuesChanged();
     }
-
-    public void ClearUserMission(ulong missionId)
+    public void ResetUserMission(ulong missionId)
     {
         if (_userMissions.ContainsKey(missionId))
             _userMissions[missionId] = new UserMission(missionId, 0, false, false, null);
         else
             _userMissions.Add(missionId, new UserMission(missionId, 0, false, false, null));
-    }
 
-    public void ClearUserMissionRefreshCount(int lifeCycleType)
-    {
-        Debug.Log("ResetRefCount");
-
-        _usedMissionFreeRefreshCount[lifeCycleType] = 0;
-        _usedMissionPaidRefreshCount[lifeCycleType] = 0;
+        NotifyValuesChanged();
     }
 
     public enum UserPropertyCategory
@@ -137,5 +146,11 @@ public partial class User
         UserAreaInfo, DefenceWeaponLevel, DefenceBarricadeLevel, TeamSkillCooldown,
         ModeLevel, WeaponType, DefenceWeaponsLevel, TopScore, BarrierCooldown, LastLogoutTime,
         UserMissionRefreshCount,
+    }
+
+    void NotifyValuesChanged()
+    {
+        if (OnValuesChange != null)
+            OnValuesChange();
     }
 }

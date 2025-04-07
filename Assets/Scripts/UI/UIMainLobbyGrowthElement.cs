@@ -258,7 +258,7 @@ public class UIMainLobbyGrowthElement : MonoBehaviour
 
         IMission mission = null;
         mission = GameData.Instance.GetMission(ElementId);
-        float completionCount = (float)mission.CompletionCount;
+        float completionCount = (float)mission.CompleteCount;
         float count = (float)mission.Count;
 
         float value = Mathf.InverseLerp(0, completionCount, count);
@@ -319,14 +319,14 @@ public class UIMainLobbyGrowthElement : MonoBehaviour
             _refreshButton.gameObject.SetActive(false);
         else
         {
-            int lifeCycleType = (int)(GameData.Instance.GetMission(ElementId).LifeCycleType);
+            int lifeCycleType = (int)(GameData.Instance.GetMission(ElementId).LifeCycle);
 
-            bool isActive = User.Instance.UsedPaidRefreshCount[lifeCycleType] < GameData.PaidMissionRefreshCounts[lifeCycleType];
-            _refreshButton.gameObject.SetActive(GameData.Instance.RandomMissions.ContainsKey(ElementId) && isActive);
+            bool isActive = User.Instance.UsedPaidRefreshCount < GameData.PaidMissionRefreshCounts;
+            _refreshButton.gameObject.SetActive(GameData.IsRandomMission(id) && isActive);
 
             if (_refreshButton.gameObject.activeSelf)
             {
-                bool isFree = User.Instance.UsedFreeRefreshCount[lifeCycleType] < GameData.FreeMissionRefreshCounts[lifeCycleType];
+                bool isFree = User.Instance.UsedFreeRefreshCount < GameData.FreeMissionRefreshCounts;
 
                 _paidRefreshUI.gameObject.SetActive(!isFree);
 
@@ -366,16 +366,17 @@ public class UIMainLobbyGrowthElement : MonoBehaviour
                 _requirementSlots[i].eventType = eventTypes[i];
                 _requirementSlots[i].isEnabled = isEnabledSlots[i];
 
-                bool isSlotMarked = false;                
+                bool isSlotMarked = false;
 
-                if(requirementSlotDescriptionTexts.ContainsKey(eventTypes[i]))
+                if (requirementSlotDescriptionTexts.ContainsKey(eventTypes[i]))
                 {
                     if (requirementSlotDescriptionTexts[eventTypes[i]] != null)
                         _requirementSlots[i].descriptionUI.text = TempDatas.LocaleTexts[requirementSlotDescriptionTexts[eventTypes[i]]];
                 }
-
                 else
+                {
                     _requirementSlots[i].descriptionUI.text = "보상 시";
+                }
 
                 _requirementSlots[i].requireType = requireTypes[i];
 
@@ -406,7 +407,6 @@ public class UIMainLobbyGrowthElement : MonoBehaviour
                 {
                     _requirementSlots[i].iconUI.sprite = Resources.Load<Sprite>("UI/Icon/" + requirementSlotIconsByRequireType[requireTypes[i]]);
                 }
-
                 else
                 {
                     if(requireTypes[i] == RequireType.Null)
@@ -487,12 +487,12 @@ public class UIMainLobbyGrowthElement : MonoBehaviour
     public void ClickRefreshButton()
     {
         UserMission mission = User.Instance.GetUserMission(ElementId);
-        int lifeCycleType = (int)GameData.Instance.GetMission(ElementId).LifeCycleType;
+        int lifeCycleType = (int)GameData.Instance.GetMission(ElementId).LifeCycle;
 
-        if (!GameData.Instance.RandomMissions.ContainsKey(ElementId) || mission.isComplete)
+        if (!GameData.IsRandomMission(ElementId) || mission.isComplete)
             return;
 
-        if (User.Instance.UsedFreeRefreshCount[lifeCycleType] < GameData.FreeMissionRefreshCounts[lifeCycleType])
+        if (User.Instance.UsedFreeRefreshCount < GameData.FreeMissionRefreshCounts)
         {
             string lifeCycleText = "";
 
@@ -512,12 +512,12 @@ public class UIMainLobbyGrowthElement : MonoBehaviour
             }
 
             Utility.ShowAlertWindow("무료 랜덤 미션 변경", $"무료 {lifeCycleText} 미션 변경 횟수를 소모하여\n'{GameData.Instance.GetMission(ElementId).Name}'을 변경하시겠습니까?"
-                + $"\n(남은 {lifeCycleText} 무료 변경 횟수: {GameData.FreeMissionRefreshCounts[(int)lifeCycleType] - User.Instance.UsedFreeRefreshCount[(int)lifeCycleType]})",
+                + $"\n(남은 {lifeCycleText} 무료 변경 횟수: {GameData.FreeMissionRefreshCounts - User.Instance.UsedFreeRefreshCount})",
                 () => RefreshMission(lifeCycleType, true), null);
             return;
         }
 
-        else if (User.Instance.UsedFreeRefreshCount[lifeCycleType] >= GameData.FreeMissionRefreshCounts[lifeCycleType])
+        else if (User.Instance.UsedFreeRefreshCount >= GameData.FreeMissionRefreshCounts)
         {
             if (User.Instance.Gem < GameData.MissionRefreshRequireGems[lifeCycleType])
             {
@@ -525,7 +525,7 @@ public class UIMainLobbyGrowthElement : MonoBehaviour
                 return;
             }
 
-            else if (User.Instance.UsedPaidRefreshCount[lifeCycleType] >= GameData.PaidMissionRefreshCounts[lifeCycleType])
+            else if (User.Instance.UsedPaidRefreshCount >= GameData.PaidMissionRefreshCounts)
             {
                 Utility.ShowAlertWindow("횟수 부족 알림", "미션 변경 횟수를 모두 소모하셨습니다.", null);
                 return;
@@ -537,13 +537,11 @@ public class UIMainLobbyGrowthElement : MonoBehaviour
 
     public void RefreshMission(int lifeCycleType, bool isFree)
     {
-        GameData.Instance.RefreshRandomMission(GameData.Instance.GetMission(ElementId), false);
-        //(app.view as MainLobbyView).MissionPanelView.UpdatePanel();
+        User.Instance.ResetUserMission(ElementId);
+        GameData.Instance.RefreshRandomMission(GameData.Instance.GetMission(ElementId), isFree);
 
         if (!isFree)
-        {
             User.Instance.Gem -= GameData.MissionRefreshRequireGems[lifeCycleType];
-        }
 
         GameObject.Find("UIMissionPanel").GetComponent<UIMainLobbyMissionPanelView>().UpdatePanel();
     }

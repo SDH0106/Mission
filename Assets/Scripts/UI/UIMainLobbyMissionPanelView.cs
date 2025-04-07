@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using System.Collections.Generic;
 using TMPro;
+using Unity.VisualScripting;
 
 public class UIMainLobbyMissionPanelView : MonoBehaviour
 {
@@ -17,7 +18,6 @@ public class UIMainLobbyMissionPanelView : MonoBehaviour
     public RectTransform ToggleGroupRect;
 
     ScrollRect _scrollRect;
-    //ScrollSnap _scrollSnap;
 
     RectTransform _dailyContentPanel;
     List<UIMainLobbyGrowthElement> _dailyElementList;
@@ -31,11 +31,23 @@ public class UIMainLobbyMissionPanelView : MonoBehaviour
     TextMeshProUGUI _missionRefreshCount;
 
     TextMeshProUGUI _goodsText;
+    TextMeshProUGUI _currentUserSetting;
 
     void Awake()
     {
         LoadComponents();
         OnUpdatePanel();
+    }
+
+    void OnEnable()
+    {
+        Initialize();
+        User.Instance.OnValuesChange += UpdatePanel;
+    }
+
+    private void OnDisable()
+    {
+        User.Instance.OnValuesChange -= UpdatePanel;
     }
 
     public void LoadComponents()
@@ -74,6 +86,7 @@ public class UIMainLobbyMissionPanelView : MonoBehaviour
         _missionRefreshCount = transform.Find("MissionRefreshPanel/RefreshCount/CountText").GetComponent<TextMeshProUGUI>();
 
         _goodsText = transform.Find("Goods").GetComponent<TextMeshProUGUI>();
+        _currentUserSetting = transform.Find("CurrentUserSetting").GetComponent<TextMeshProUGUI>();
     }
 
     protected void OnUpdatePanel()
@@ -84,7 +97,7 @@ public class UIMainLobbyMissionPanelView : MonoBehaviour
         ElementListClear(_monthlyElementList);
 
         // 미션 초기화
-        Dictionary<ulong, IMission> missions = GameData.Instance.Mission;
+        Dictionary<ulong, IMission> missions = GameData.Instance.Missions;
         var missionEnum = missions.GetEnumerator();
         while (missionEnum.MoveNext())
         {
@@ -111,7 +124,8 @@ public class UIMainLobbyMissionPanelView : MonoBehaviour
             }
         }
 
-        _goodsText.text = $"Relec: {User.Instance.Relic}\nGem: {User.Instance.Gem}\nCoin: {User.Instance.Coin}";
+        _goodsText.text = $"Gem: {User.Instance.Gem}";
+        _currentUserSetting.text = $"현재 플레이 챕터: {GameManager.currentChapter}\n장착 중인 펫: {GameData.Instance.Pets[User.Instance._userPet]}\n선택한 캐릭터: {GameData.Instance.Bodies[User.Instance._userBody]}";
 
         UpdateRefreshCount(_activatedPanel);
         SortMissionListAll();
@@ -148,17 +162,6 @@ public class UIMainLobbyMissionPanelView : MonoBehaviour
         }
     }
 
-    void OnEnable()
-    {
-        //app.model.ExitFunctionStack.Push(() => { Notify(MainLobbyEventKey.MissionExitClick); });
-        Initialize();
-    }
-
-    /*private void OnDisable()
-    {
-        app.model.ExitFunctionStack.Pop();
-    }*/
-
     void InitString()
     {
         transform.Find("Window/ToggleGroupGrowthTab/ToggleDaily/Text").GetComponent<TextMeshProUGUI>().text = "일일";
@@ -174,7 +177,7 @@ public class UIMainLobbyMissionPanelView : MonoBehaviour
         ElementListClear(_monthlyElementList);
 
         // 미션 초기화
-        Dictionary<ulong, IMission> missions = GameData.Instance.Mission;
+        Dictionary<ulong, IMission> missions = GameData.Instance.Missions;
         var missionEnum = missions.GetEnumerator();
         while (missionEnum.MoveNext())
         {
@@ -445,8 +448,8 @@ public class UIMainLobbyMissionPanelView : MonoBehaviour
         }
 
         _missionRefreshText.text = $"{lifeCycleText} {"미션 변경 횟수"}";
-        int restFreeCount = (GameData.FreeMissionRefreshCounts[lifeCycleType] - User.Instance.UsedFreeRefreshCount[lifeCycleType]);
-        int restPaidCount = (GameData.PaidMissionRefreshCounts[lifeCycleType] - User.Instance.UsedPaidRefreshCount[lifeCycleType]);
+        int restFreeCount = (GameData.FreeMissionRefreshCounts - User.Instance.UsedFreeRefreshCount);
+        int restPaidCount = (GameData.PaidMissionRefreshCounts - User.Instance.UsedPaidRefreshCount);
         _missionRefreshCount.text = (restFreeCount + restPaidCount).ToString();
     }
 

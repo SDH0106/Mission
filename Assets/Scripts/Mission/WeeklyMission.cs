@@ -1,24 +1,21 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 public class WeeklyMission : IMission
 {
     public ulong Id { get; set; }
     public string IconId { get; set; }
-    //public string Name => RandomMissionExplainElements == null ? Locale.GetText(nameId, "main") : Locale.GetTextFormat(nameId, "main", Id % 10000 + 1);
-    public string Name => RandomMissionExplainElements == null ? TempDatas.MissionNameDict[nameId] : string.Format(TempDatas.MissionNameDict[nameId], Id % 10000 + 1);
-    private readonly string nameId;
-    //public string Explain => RandomMissionExplainElements == null ? Locale.GetText(explainId, "main") : Locale.GetTextFormat(explainId, "main", RandomMissionExplainElements.ToArray());
-    public string Explain => RandomMissionExplainElements == null ? TempDatas.MissionExplainDic[explainId] : string.Format(TempDatas.MissionExplainDic[explainId], RandomMissionExplainElements.ToArray());
-    private readonly string explainId;
-    public MissionType Type { get; set; }
-    public LifeCycleType LifeCycleType { get; set; }
-    public double CompletionCount { get; set; }
+    public string Name => GetNameByNameId();
+    public string NameId { get; set; }
+    public string Explain => GetExplainByExplainId();
+    public string ExplainId { get; set; }
+    public double CompleteCount { get; set; }
     public RewardType RewardType { get; set; }
     public ulong RewardAmount { get; set; }
-
-    public List<string> RandomMissionExplainElements { get; set; }
-    public Dictionary<RandomMission.MissionElementTypes, string> RandomMissionElements { get; set; }
+    public LifeCycleType LifeCycle { get; set; }
+    public MissionObjective[] MissionObjectives { get; set; }
+    public List<string> MissionExplainElements { get; set; }
 
     double _count;
     bool _isComplete;
@@ -49,33 +46,42 @@ public class WeeklyMission : IMission
         }
     }
 
-    public WeeklyMission(ulong id, string iconId, int lifeCycleType, string nameId, string explainId, int type, double completionCount, int rewardType, ulong rewardAmount, List<string> missionExplainElements = null, Dictionary<RandomMission.MissionElementTypes, string> randomMissionElements = null)
+    public WeeklyMission(ulong id, string iconId, int lifeCycleType, string nameId, string explainId, double completionCount, int rewardType, ulong rewardAmount, List<string> missionExplainElement, MissionObjective[] missionObjectives)
     {
         this.Id = id;
         this.IconId = iconId;
-        this.nameId = nameId;
-        this.explainId = explainId;
-        this.Type = (MissionType)type;
-        this.CompletionCount = completionCount;
+        this.NameId = nameId;
+        this.ExplainId = explainId;
+        this.CompleteCount = completionCount;
         this.RewardType = (RewardType)rewardType;
         this.RewardAmount = rewardAmount;
-        this.LifeCycleType = (LifeCycleType)lifeCycleType;
-        this.RandomMissionExplainElements = missionExplainElements;
-        this.RandomMissionElements = randomMissionElements;
+        this.LifeCycle = (LifeCycleType)lifeCycleType;
+        this.MissionObjectives = missionObjectives;
+        this.MissionExplainElements = missionExplainElement;
     }
 
     public WeeklyMission() { }
 
     public double GetReward()
     {
-        int lastNormalAreaId = GameData.Instance.CalculateLastUnlockedArea();
-
-        if (RewardType == RewardType.Gem)
+        if (MissionObjectives.Any(x => x.condition1 == MissionConditionKeys.MissionCompleteAll))
+        {
+            if (RewardType == RewardType.Gem)
+                return RewardAmount;
+            else
+                return (3f * (User.Instance.Chapter + 1) * (User.Instance.Chapter + 1));
+        }
+        else if (MissionObjectives.Any(x => x.condition1 == MissionConditionKeys.PlayTime))
+        {
             return RewardAmount;
-        else if (RewardType == RewardType.Coin)
-            return RewardAmount;
+        }
         else
-            return ((lastNormalAreaId + 1) * 14);
+        {
+            if (RewardType == RewardType.Gem)
+                return RewardAmount;
+            else
+                return 2f * (User.Instance.Chapter + 1);
+        }
     }
 
     public void MissionReward()
@@ -96,13 +102,11 @@ public class WeeklyMission : IMission
     public bool CheckComplete()
     {
         if (IsComplete) return true;
-        if (CompletionCount <= Count)
+        if (CompleteCount <= Count)
         {
             User.Instance.SetMissionComplete(Id, true);
             GameData.Instance.CompleteMissions.Add(Id);
 
-            IMission mission = GameData.Instance.GetMission(GameData.Instance.BasicMissions[1]);
-            mission.AddCount(1);
             return true;
         }
         return false;
@@ -112,8 +116,17 @@ public class WeeklyMission : IMission
     {
         if (IsComplete || IsReward) return;
         double addCount = Count + num;
-        if (addCount > CompletionCount) addCount = CompletionCount;
+        if (addCount > CompleteCount) addCount = CompleteCount;
         User.Instance.SetMissionCount(Id, addCount);
+    }
+
+    public void SetCount(double num)
+    {
+        if (IsComplete || IsReward) return;
+        double setCount = num;
+        if (setCount > CompleteCount) setCount = CompleteCount;
+        User.Instance.SetMissionCount(Id, setCount);
+        CheckComplete();
     }
 
     void GetMissionCount()
@@ -123,5 +136,21 @@ public class WeeklyMission : IMission
         _count = mission.count;
         _isComplete = mission.isComplete;
         _isReward = mission.isReward;
+    }
+
+    string GetNameByNameId()
+    {
+        if ((Id / 1000000) % 100 != 01)
+            return NameId;
+
+        return string.Format(NameId, Id % 10000 + 1);
+    }
+
+    string GetExplainByExplainId()
+    {
+        if (MissionExplainElements == null)
+            return ExplainId;
+
+        return string.Format(ExplainId, MissionExplainElements.ToArray());
     }
 }

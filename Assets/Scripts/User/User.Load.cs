@@ -1,6 +1,7 @@
 using Defective.JSON;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 public partial class User //Load
@@ -9,15 +10,14 @@ public partial class User //Load
     {
         JSONObject loadJson = new JSONObject(PlayerPrefs.GetString(SavedJsonPrefsKey, ""));
 
+        loadJson.Clear();
+
         string valueString = "";
 
-        for (int i = 0; i < UsedFreeRefreshCount.Length; ++i)
-        {
-            loadJson.GetField(out valueString, UserPropertyCategory.UserMissionRefreshCount.ToString() + i, "0,0");
-            string[] splitString = valueString.Split(',');
-            int.TryParse(splitString[0], out _usedMissionFreeRefreshCount[i]);
-            int.TryParse(splitString[1], out _usedMissionPaidRefreshCount[i]);
-        }
+        loadJson.GetField(out valueString, UserPropertyCategory.UserMissionRefreshCount.ToString(), "0,0");
+        string[] splitString = valueString.Split(',');
+        int.TryParse(splitString[0], out _usedMissionFreeRefreshCount);
+        int.TryParse(splitString[1], out _usedMissionPaidRefreshCount);
 
         loadJson.GetField(out valueString, UserPropertyCategory.DailyClearLog.ToString(), "12/27/2016");
         GameManager._dailyLogoutTime = System.DateTime.Parse(valueString);
@@ -35,6 +35,7 @@ public partial class User //Load
     public void LoadUserMissionJson(JSONObject json)
     {
         _userMissions = new Dictionary<ulong, UserMission>();
+
         if (json != null)
         {
             for (int i = 0; i < json.count; i++)
@@ -51,26 +52,36 @@ public partial class User //Load
                 obj.GetField(out valueStr, "isReward", "0");
                 bool.TryParse(valueStr, out mission.isReward);
 
-                string keyStr = "";
-                obj.GetField(out keyStr, "randomElementKey", null);
-                obj.GetField(out valueStr, "randomElementValue", null);
-                if (!string.IsNullOrEmpty(keyStr))
+                if ((mission.id / 1000000) % 100 == 01)
                 {
-                    string[] randomElementKey = keyStr.Split(",");
-                    string[] randomElementValue = valueStr.Split(",");
+                    JSONObject missionObjectives = json[i].GetField("objectives");
 
-                    Dictionary<RandomMission.MissionElementTypes, string> tempDic = new Dictionary<RandomMission.MissionElementTypes, string>();
-
-                    for (int j = 0; j < randomElementKey.Length; ++j)
+                    if (missionObjectives != null)
                     {
-                        RandomMission.MissionElementTypes type = (RandomMission.MissionElementTypes)Enum.Parse(typeof(RandomMission.MissionElementTypes), randomElementKey[j]);
-                        tempDic.Add(type, randomElementValue[j]);
-                    }
+                        MissionObjective[] missionObj = new MissionObjective[missionObjectives.count];
 
-                    mission.randomMissionElements = tempDic;
+                        for (int j = 0; j < missionObjectives.count; j++)
+                        {
+                            JSONObject missionObjective = missionObjectives[j];
+
+                            string valueStr2 = "";
+                            missionObjective.GetField(out valueStr2, "condition1", MissionConditionKeys.Null);
+                            missionObj[j].condition1 = valueStr2;
+                            missionObjective.GetField(out valueStr2, "condition2", MissionConditionKeys.Null);
+                            missionObj[j].condition2 = valueStr2;
+                            missionObjective.GetField(out valueStr2, "objectiveCount", "0");
+                            double.TryParse(valueStr2, out missionObj[j].objectiveCount);
+                            missionObjective.GetField(out valueStr2, "groupId", "0");
+                            int.TryParse(valueStr2, out missionObj[j].groupId);
+
+                            //Debug.Log(mission.id + " " + missionObj[j].category + " " + missionObj[j].categoryValue);
+                        }
+
+                        mission.objectives = missionObj;
+                    }
                 }
 
-                if (mission.id != 0 && _userMissions.ContainsKey(mission.id) == false)
+                if (mission.id != 0 && !_userMissions.ContainsKey(mission.id))
                 {
                     _userMissions.Add(mission.id, mission);
                 }
